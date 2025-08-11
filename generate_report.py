@@ -76,12 +76,28 @@ def aggregate_performance(data):
 
 
 if __name__ == "__main__":
-
-    data = []
-
-    with open("report.json", "r") as f:
-        j=json.load(f)
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Generate reports from ReFrame performance data")
+    parser.add_argument("reports", nargs="+", help="JSON file containing ReFrame performance report")
+    parser.add_argument("--aggregate", action="store_true",default=False, help="Aggregate performance data")
+    parser.add_argument("--type", choices=["pass", "performance"], default="pass", 
+                       help="Report type: 'pass' or 'performance' (default: pass)")
     
-    reporter = reportGenerator(j)
-    data= aggregate_performance( reporter.generate(report_type="performance") )
-    print(data.to_csv(sep=" "))
+    args = parser.parse_args()
+
+    
+    for report in args.reports:
+
+        # Load the report JSON file
+        with open(report, "r") as f:
+            j = json.load(f)
+
+        # Create a report as a Pandas DataFrame
+        reporter = reportGenerator(j)
+        data = reporter.generate(report_type=args.type)
+
+        # Aggregate data if requested and report type is performance
+        if args.aggregate and args.type == "performance":
+            data = aggregate_performance(data)
+
+        print(data.to_csv(sep=" "))
