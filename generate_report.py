@@ -83,29 +83,46 @@ def aggregate_performance(data : pd.DataFrame):
 
     return aggregated_data 
 
-def compare_performance(report1, report2):
+def compare_performance(reports):
     """Compare two performance DataFrames and return a DataFrame with differences.
     
     Args:
-        report1: First DataFrame containing performance data
-        report2: Second DataFrame containing performance data
+        reports: List of DataFrames containing performance data
     Returns:
         DataFrame: Merged DataFrame with results merged. A column with relative differences in added as well
 
     """
     
     key_columns = ["name", "system","environ", "Variable", "Unit"]
-    
-    assert (report1.columns == report2.columns).all(), "Both reports must have the same columns for comparison."
-    
-    merged = pd.merge(report1, report2, on=key_columns, suffixes=('_1', '_2'), how='inner')
-    
-    
-    if "Mean" in report1.columns: 
-        merged["Mean_diff[%]"] = 100*(merged["Mean_2"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
-        merged["Std_diff[%]"] = 100*(np.sqrt(merged["Std_2"]**2 + merged["Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
 
+    # Column names should be the same for all reports    
+    for i in range(0,len(reports)-1):
+
+        assert (reports[i].columns == reports[i+1].columns).all(), "Both reports must have the same columns for comparison."
+
+
+    # Merge all reports on columns identifying the test. After merging an appendix _{i} is added to the column with results from the i-th report
+    merged = pd.merge(reports[0], reports[1], on=key_columns, suffixes=('', '_2'), how='inner')
+    for i in range(1,len(reports)-1):
+        merged = pd.merge(merged, reports[i+1], on=key_columns, suffixes=('', f'_{i+2}'), how='inner')
+
+
+    if "Mean" in reports[i].columns:
+
+        # Rename first column to avoid confusion
+        merged.rename(columns={"Mean": "Mean_1", "Std": "Std_1"}, inplace=True)
+        
+        # Calculate relative differences
+        merged["Mean_diff[%]"] = 100*(merged["Mean_2"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
+        # Calculate standard deviation of the difference relative to the mean
+        merged["Std_diff[%]"] = 100*(np.sqrt(merged["Std_2"]**2 + merged["Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
+    
     else:
+        
+        # Rename first column to avoid confusion
+        merged.rename(columns={"Value": "Value_1"}, inplace=True)
+        
+        # Compute relative differences for performance values
         merged["Value_diff"] = 100*(merged["Value_2"] - merged["Value_1"]) / merged["Value_1"].replace(0, np.nan)
 
 
@@ -143,10 +160,11 @@ if __name__ == "__main__":
         reports.append(report)
 
     if args.compare:
-        if len(reports) != 2:
-            raise ValueError("Comparison requires exactly two reports.")
-        comparison = compare_performance(reports[0], reports[1])
+        if len(reports) < 2:
+            raise ValueError("Comparison requires at least two reports.")
+        comparison = compare_performance(reports)
         print(comparison.to_csv(sep=" "))
+
     else:
         for report in reports:
             print(report.to_csv(sep=" "))
