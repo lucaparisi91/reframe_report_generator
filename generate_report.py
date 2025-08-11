@@ -84,6 +84,47 @@ def aggregate_performance(data : pd.DataFrame):
 
     return aggregated_data 
 
+
+def highlight( report, condition: list) -> None:
+    """Highlight rows in a DataFrame based on a condition.
+
+    This function modifies the specified column in the DataFrame to highlight cells that meet a certain condition using Latex.
+
+    Args:
+        report: DataFrame containing the report data
+        condition: Array of boolean values indicating which cells to highlight
+    """
+
+    for index,cond in zip(report.index, condition):
+
+        if cond:
+            # Highlight the cell in red using LaTeX formatting
+            report.iloc[index,:] = [ r'$$\color{red}' +  str(val) + r'$$' for val in report.iloc[index,:] ]
+
+
+
+
+def annotate_aggregated_performance(report) -> None:
+    """ Annotate columns for a performance report to be displayed in markdown.
+
+    Args:
+        report: DataFrame containing the performance report data
+        
+    """
+
+    # Get the number of comparisons based on the number of "Mean Diff." columns 
+    number_of_comparisions=len([col for col in report.columns if col.startswith("Mean Diff.")] )
+
+
+    # Highlight each column with relative differences
+    for i in range(1, number_of_comparisions+1):
+
+        is_negative = report[f"Mean Diff. {i+1}-{1}[%]"] < 0
+        is_significant = abs(report[f"Mean Diff. {i+1}-{1}[%]"]) > report[f"Std Diff. {i+1}-{1} [%]"]
+
+        highlight(report, is_negative & is_significant )
+
+
 def compare_performance(reports):
     """Compare two performance DataFrames and return a DataFrame with differences.
     
@@ -120,7 +161,8 @@ def compare_performance(reports):
             # Calculate relative differences
             merged[f"Mean Diff. {i+1}-{1}[%]"] = 100*(merged[f"Mean_{i+1}"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
             # Calculate standard deviation of the difference relative to the mean
-            merged[f"Std diff. {i+1}-{1} [%]"] = 100*(np.sqrt(merged[f"Std_{i+1}"]**2 + merged[f"Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
+            merged[f"Std Diff. {i+1}-{1} [%]"] = 100*(np.sqrt(merged[f"Std_{i+1}"]**2 + merged[f"Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
+            
 
     else:
 
@@ -136,20 +178,26 @@ def compare_performance(reports):
     return merged.reset_index()
 
 
+
+
+
+
 def get_formatted_report(report, format_type="dsv"):
     """Write the report in the specified format.
     
     Args:
         report: DataFrame containing the report data
-        format_type: Format type for the report, either 'dsv' or 'markdown'
+        format_type: Format type for the report, either 'dsv', 'markdown', or 'html'
     """
     
     if format_type == "dsv":
         return report.to_csv(sep=" ")
     elif format_type == "markdown":
         return report.to_markdown()
+    elif format_type == "html":
+        return report.to_html(index=False)
     else:
-        raise ValueError("Unsupported format type. Use 'dsv' or 'markdown'.")
+        raise ValueError("Unsupported format type. Use 'dsv', 'markdown', or 'html'.")
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -160,8 +208,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--type", choices=["pass", "performance"], default="pass", 
                        help="Report type: 'pass' or 'performance' (default: pass)")
-    parser.add_argument("--format", choices=["dsv", "markdown"], default="dsv", 
-                       help="Report format: 'dsv' or 'markdown' (default: dsv)")
+    parser.add_argument("--format", choices=["dsv", "markdown", "html"], default="dsv", 
+                       help="Report format: 'dsv', 'markdown', or 'html' (default: dsv)")
 
     args = parser.parse_args()
     reports = []    
@@ -185,7 +233,9 @@ if __name__ == "__main__":
         if len(reports) < 2:
             raise ValueError("Comparison requires at least two reports.")
         comparison = compare_performance(reports)
-        print(get_formatted_report(comparison, format_type=args.format))
+
+        if args.aggregate and args.type == "performance":
+            print(get_formatted_report(comparison, format_type=args.format))
 
     else:
         for report in reports:
