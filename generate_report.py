@@ -73,7 +73,7 @@ def aggregate_performance(data : pd.DataFrame):
     Returns:
         DataFrame: Aggregated performance data with mean and standard deviation for each performance variable.
     """
-    
+
 
     key_columns = ["name", "system","environ", "Variable", "Unit"]
     aggregated_data=data.groupby(key_columns).agg(
@@ -83,30 +83,70 @@ def aggregate_performance(data : pd.DataFrame):
 
     return aggregated_data 
 
+def compare_performance(report1, report2):
+    """Compare two performance DataFrames and return a DataFrame with differences.
+    
+    Args:
+        report1: First DataFrame containing performance data
+        report2: Second DataFrame containing performance data
+    Returns:
+        DataFrame: Merged DataFrame with results merged. A column with relative differences in added as well
+
+    """
+    
+    key_columns = ["name", "system","environ", "Variable", "Unit"]
+    
+    assert (report1.columns == report2.columns).all(), "Both reports must have the same columns for comparison."
+    
+    merged = pd.merge(report1, report2, on=key_columns, suffixes=('_1', '_2'), how='inner')
+    
+    
+    if "Mean" in report1.columns: 
+        merged["Mean_diff[%]"] = 100*(merged["Mean_2"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
+        merged["Std_diff[%]"] = 100*(np.sqrt(merged["Std_2"]**2 + merged["Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
+
+    else:
+        merged["Value_diff"] = 100*(merged["Value_2"] - merged["Value_1"]) / merged["Value_1"].replace(0, np.nan)
+
+
+
+
+    return merged
+
 
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Generate reports from ReFrame performance data")
     parser.add_argument("reports", nargs="+", help="JSON file containing ReFrame performance report")
     parser.add_argument("--aggregate", action="store_true",default=False, help="Aggregate performance data")
+    parser.add_argument("--compare", action="store_true",default=False, help="Compare performance data")
+
     parser.add_argument("--type", choices=["pass", "performance"], default="pass", 
                        help="Report type: 'pass' or 'performance' (default: pass)")
     
     args = parser.parse_args()
-
-    
-    for report in args.reports:
-
+    reports = []    
+    for report_file in args.reports:
         # Load the report JSON file
-        with open(report, "r") as f:
+        with open(report_file, "r") as f:
             j = json.load(f)
-
+        
+    
         # Create a report as a Pandas DataFrame
         reporter = reportGenerator(j)
-        data = reporter.generate(report_type=args.type)
+        report = reporter.generate(report_type=args.type)
 
         # Aggregate data if requested and report type is performance
         if args.aggregate and args.type == "performance":
-            data = aggregate_performance(data)
+            report = aggregate_performance(report)
 
-        print(data.to_csv(sep=" "))
+        reports.append(report)
+
+    if args.compare:
+        if len(reports) != 2:
+            raise ValueError("Comparison requires exactly two reports.")
+        comparison = compare_performance(reports[0], reports[1])
+        print(comparison.to_csv(sep=" "))
+    else:
+        for report in reports:
+            print(report.to_csv(sep=" "))
