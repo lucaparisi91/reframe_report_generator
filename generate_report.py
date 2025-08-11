@@ -1,6 +1,7 @@
 import argparse
 import json
 import pandas as pd
+import numpy as np 
 
 class reportGenerator: 
     def __init__(self, report):
@@ -25,23 +26,29 @@ class reportGenerator:
 
         if "perfvalues" in testcase.keys():        
             for key,value in testcase["perfvalues"].items():
+                
+                
+
                 record= {
-                    "Variable": key.split(":")[2],
-                    "Value": value[0],
-                    "Reference": value[1],
-                    "Unit" : value[4] 
+                    "Variable": str(key.split(":")[2]),
+                    "Unit" : str(value[4]),
+                    #"Reference": np.float32(value[1]),
+                    "Value": np.float32(value[0]),
                 }
+
                 records.append(record)
             return records
-    
+
     def generate(self, report_type="pass" ):
         records= []
         for run in self.report["runs"]:
             for testcase in run["testcases"]:
-
+                
                 record = {
                     "name": testcase["display_name"],
-                    "jobid": testcase["jobid"]
+                    "jobid": testcase["jobid"],
+                    "system": testcase["system"],
+                    "environ": testcase["environ"],
                 }
 
                 if report_type == "pass":
@@ -58,6 +65,16 @@ class reportGenerator:
         return pd.DataFrame(records)
 
 
+def aggregate_performance(data):
+    key_columns = ["name", "system","environ", "Variable", "Unit"]
+    aggregated_data=data.groupby(key_columns).agg(
+        Mean=("Value", "mean"),
+        Std=("Value", "std"),
+    )
+
+    return aggregated_data 
+
+
 if __name__ == "__main__":
 
     data = []
@@ -66,5 +83,5 @@ if __name__ == "__main__":
         j=json.load(f)
     
     reporter = reportGenerator(j)
-    data= reporter.generate(report_type="performance")
+    data= aggregate_performance( reporter.generate(report_type="performance") )
     print(data.to_csv(sep=" "))
