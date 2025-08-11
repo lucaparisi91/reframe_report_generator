@@ -15,6 +15,14 @@ Available options can be obtained with the command `python generate_report -h`.
 
 ## Usage on Archer2
 
+On first usage, install with 
+
+```bash
+bash install.sh
+```
+
+You can setup the environment from the root directory by sodurcing the environment setup script.
+
 ```bash
 source env.sh
-```s
+```
