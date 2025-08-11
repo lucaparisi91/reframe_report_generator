@@ -65,7 +65,16 @@ class reportGenerator:
         return pd.DataFrame(records)
 
 
-def aggregate_performance(data):
+def aggregate_performance(data : pd.DataFrame):
+    """Aggregate performance data by computing mean and standard deviation for each performance variable.
+    
+    Args:
+        data: DataFrame containing performance data
+    Returns:
+        DataFrame: Aggregated performance data with mean and standard deviation for each performance variable.
+    """
+    
+
     key_columns = ["name", "system","environ", "Variable", "Unit"]
     aggregated_data=data.groupby(key_columns).agg(
         Mean=("Value", "mean"),
