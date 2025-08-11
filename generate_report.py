@@ -65,6 +65,7 @@ class reportGenerator:
         return pd.DataFrame(records)
 
 
+# This a bit of a messy function, could do with a clean-up
 def aggregate_performance(data : pd.DataFrame):
     """Aggregate performance data by computing mean and standard deviation for each performance variable.
     
@@ -100,36 +101,55 @@ def compare_performance(reports):
 
         assert (reports[i].columns == reports[i+1].columns).all(), "Both reports must have the same columns for comparison."
 
-
+    aggregated = "Mean" in reports[i].columns
+    
+    
     # Merge all reports on columns identifying the test. After merging an appendix _{i} is added to the column with results from the i-th report
     merged = pd.merge(reports[0], reports[1], on=key_columns, suffixes=('', '_2'), how='inner')
     for i in range(1,len(reports)-1):
         merged = pd.merge(merged, reports[i+1], on=key_columns, suffixes=('', f'_{i+2}'), how='inner')
 
-
-    if "Mean" in reports[i].columns:
+    
+    if aggregated:
 
         # Rename first column to avoid confusion
-        merged.rename(columns={"Mean": "Mean_1", "Std": "Std_1"}, inplace=True)
-        
-        # Calculate relative differences
-        merged["Mean_diff[%]"] = 100*(merged["Mean_2"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
-        # Calculate standard deviation of the difference relative to the mean
-        merged["Std_diff[%]"] = 100*(np.sqrt(merged["Std_2"]**2 + merged["Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
-    
+        merged.rename(columns={value: f"{value}_1" for value in ["Mean", "Std"]}, inplace=True)
+
+        for i in range(1, len(reports ) ):
+
+            # Calculate relative differences
+            merged[f"Mean Diff. {i+1}-{1}[%]"] = 100*(merged[f"Mean_{i+1}"] - merged["Mean_1"]) / merged["Mean_1"].replace(0, np.nan)
+            # Calculate standard deviation of the difference relative to the mean
+            merged[f"Std diff. {i+1}-{1} [%]"] = 100*(np.sqrt(merged[f"Std_{i+1}"]**2 + merged[f"Std_1"]**2)) / merged["Mean_1"].replace(0, np.nan)
+
     else:
-        
+
         # Rename first column to avoid confusion
         merged.rename(columns={"Value": "Value_1"}, inplace=True)
-        
-        # Compute relative differences for performance values
-        merged["Value_diff"] = 100*(merged["Value_2"] - merged["Value_1"]) / merged["Value_1"].replace(0, np.nan)
+        merged.rename(columns={"jobid": "jobid_1"}, inplace=True)
+
+        for i in range(1, len(reports )):
+
+            # Calculate relative differences
+            merged[f"Value Diff. {i+1}-{1}[%]"] = 100*(merged[f"Value_{i+1}"] - merged["Value_1"]) / merged["Value_1"].replace(0, np.nan)
+
+    return merged.reset_index()
 
 
-
-
-    return merged
-
+def get_formatted_report(report, format_type="dsv"):
+    """Write the report in the specified format.
+    
+    Args:
+        report: DataFrame containing the report data
+        format_type: Format type for the report, either 'dsv' or 'markdown'
+    """
+    
+    if format_type == "dsv":
+        return report.to_csv(sep=" ")
+    elif format_type == "markdown":
+        return report.to_markdown()
+    else:
+        raise ValueError("Unsupported format type. Use 'dsv' or 'markdown'.")
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -140,7 +160,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--type", choices=["pass", "performance"], default="pass", 
                        help="Report type: 'pass' or 'performance' (default: pass)")
-    
+    parser.add_argument("--format", choices=["dsv", "markdown"], default="dsv", 
+                       help="Report format: 'dsv' or 'markdown' (default: dsv)")
+
     args = parser.parse_args()
     reports = []    
     for report_file in args.reports:
@@ -163,8 +185,8 @@ if __name__ == "__main__":
         if len(reports) < 2:
             raise ValueError("Comparison requires at least two reports.")
         comparison = compare_performance(reports)
-        print(comparison.to_csv(sep=" "))
+        print(get_formatted_report(comparison, format_type=args.format))
 
     else:
         for report in reports:
-            print(report.to_csv(sep=" "))
+            print(get_formatted_report(report, format_type=args.format))
