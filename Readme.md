@@ -12,6 +12,11 @@ python generate_report my_report.json
 
 Available options can be obtained with the command `python generate_report -h`.
 
+In order to generate a report in markdown comparing the performance of three different reports in a markdown file called `report.md` one ca use
+
+```bash
+python generate_report.py --compare --aggregate --type=performance --format=markdown report.json  report.json report.json > report.md
+```
 
 ## Usage on Archer2
 
