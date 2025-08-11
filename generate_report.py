@@ -82,48 +82,7 @@ def aggregate_performance(data : pd.DataFrame):
         Std=("Value", "std"),
     )
 
-    return aggregated_data 
-
-
-def highlight( report, condition: list) -> None:
-    """Highlight rows in a DataFrame based on a condition.
-
-    This function modifies the specified column in the DataFrame to highlight cells that meet a certain condition using Latex.
-
-    Args:
-        report: DataFrame containing the report data
-        condition: Array of boolean values indicating which cells to highlight
-    """
-
-    for index,cond in zip(report.index, condition):
-
-        if cond:
-            # Highlight the cell in red using LaTeX formatting
-            report.iloc[index,:] = [ r'$$\color{red}' +  str(val) + r'$$' for val in report.iloc[index,:] ]
-
-
-
-
-def annotate_aggregated_performance(report) -> None:
-    """ Annotate columns for a performance report to be displayed in markdown.
-
-    Args:
-        report: DataFrame containing the performance report data
-        
-    """
-
-    # Get the number of comparisons based on the number of "Mean Diff." columns 
-    number_of_comparisions=len([col for col in report.columns if col.startswith("Mean Diff.")] )
-
-
-    # Highlight each column with relative differences
-    for i in range(1, number_of_comparisions+1):
-
-        is_negative = report[f"Mean Diff. {i+1}-{1}[%]"] < 0
-        is_significant = abs(report[f"Mean Diff. {i+1}-{1}[%]"]) > report[f"Std Diff. {i+1}-{1} [%]"]
-
-        highlight(report, is_negative & is_significant )
-
+    return aggregated_data
 
 def compare_performance(reports):
     """Compare two performance DataFrames and return a DataFrame with differences.
