@@ -49,12 +49,12 @@ def create_horizontal_bar_plot(data, labels, title="Horizontal Bar Plot",
     bars = ax.barh(y_pos, data, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5,xerr=xerr)
     
     # Customize the plot
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels)
+    #ax.set_yticks(y_pos)
+    #ax.set_yticklabels(labels)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=14, fontweight='bold')
-    
+    ax.set_xlim(-100, 100)  # Set x-axis limits to ensure space for labels
     # Add vertical line at x=0 to emphasize the separation
     ax.axvline(x=0, color='black', linewidth=1, alpha=0.8)
     
@@ -158,19 +158,20 @@ if __name__ == "__main__":
 
     data = data[data[error_column] > 0]
 
-    data_pages = [ data.head(30) ]  # Limit to first 30 rows for demonstration
+    data_pages = [ data ]  # Limit to first 30 rows for demonstration
     #data_pages=split_data(data,max_rows=100)
+    
+    data["label"] = data['name'] + " " + data['Variable']
 
     for index_page,page in enumerate(data_pages):
         fig, ax = create_comparison_bar_plot(
             dataframe=page,
             value_column='Mean Diff. 3-1[%]',
             error_column=error_column,
-            label_column='name',
+            label_column='label',
             title="System Performance Comparison",
             xlabel="Performance Difference (%)"
         )
-        plt.show()
 
-        plt.savefig(f'performance_comparison_page_{index_page}.pdf', dpi=300)  # Save the figure with high resolution
+        plt.savefig(f'performance_comparison_page_{index_page}.png')  # Save the figure with high resolution
 
