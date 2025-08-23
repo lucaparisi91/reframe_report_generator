@@ -1,71 +1,9 @@
 import argparse
 import json
 import pandas as pd
-import numpy as np 
+import numpy as np
+from reframe_tools.table_generator import TableGenerator
 
-class reportGenerator: 
-    def __init__(self, report):
-        self.report = report
-
-    def _get_result(self, testcase):
-        if testcase["fail_phase"] == None:
-            return "Passed"
-        else:
-            return f"Failed: {testcase['fail_phase']}"
-
-    def _get_perfs(self,testcase):
-        """ Extract performance values from a testcase. 
-        
-        Args:
-            testcase (dict): A dictionary representing a single test case from the report.
-        Returns:
-            list: A list of dictionaries, each containing performance variable, value, reference, and unit
-        """
-
-        records=[]
-
-        if "perfvalues" in testcase.keys():        
-            for key,value in testcase["perfvalues"].items():
-                
-                
-
-                record= {
-                    "Variable": str(key.split(":")[2]),
-                    "Unit" : str(value[4]),
-                    #"Reference": np.float32(value[1]),
-                    "Value": np.float32(value[0]),
-                }
-
-                records.append(record)
-            return records
-
-    def generate(self, report_type="pass" ):
-        records= []
-        for run in self.report["runs"]:
-            for testcase in run["testcases"]:
-                
-                record = {
-                    "name": testcase["display_name"],
-                    "jobid": testcase["jobid"],
-                    "system": testcase["system"],
-                    "environ": testcase["environ"],
-                }
-
-                if report_type == "pass":
-                    record.update( {"result": self._get_result(testcase)   })
-                    records.append(record)
-                elif report_type == "performance":
-
-                    for perf_record in self._get_perfs(testcase):
-                        current_record = record.copy()
-                        current_record.update(perf_record)
-                        records.append(current_record)
-
-
-        return pd.DataFrame(records)
-
-
-# This a bit of a messy function, could do with a clean-up
 def aggregate_performance(data : pd.DataFrame):
     """Aggregate performance data by computing mean and standard deviation for each performance variable.
     
@@ -83,6 +21,7 @@ def aggregate_performance(data : pd.DataFrame):
     )
 
     return aggregated_data
+
 
 def compare_performance(reports):
     """Compare two performance DataFrames and return a DataFrame with differences.
@@ -138,9 +77,6 @@ def compare_performance(reports):
 
 
 
-
-
-
 def get_formatted_report(report, format_type="dsv"):
     """Write the report in the specified format.
     
@@ -158,7 +94,9 @@ def get_formatted_report(report, format_type="dsv"):
     else:
         raise ValueError("Unsupported format type. Use 'dsv', 'markdown', or 'html'.")
 
+
 if __name__ == "__main__":
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Generate reports from ReFrame performance data")
     parser.add_argument("reports", nargs="+", help="JSON file containing ReFrame performance report")
@@ -179,8 +117,7 @@ if __name__ == "__main__":
         
     
         # Create a report as a Pandas DataFrame
-        reporter = reportGenerator(j)
-        report = reporter.generate(report_type=args.type)
+        report = TableGenerator(j).generate(report_type=args.type)
 
         # Aggregate data if requested and report type is performance
         if args.aggregate and args.type == "performance":
@@ -189,6 +126,7 @@ if __name__ == "__main__":
         reports.append(report)
 
     if args.compare:
+        
         if len(reports) < 2:
             raise ValueError("Comparison requires at least two reports.")
         comparison = compare_performance(reports)
@@ -196,6 +134,6 @@ if __name__ == "__main__":
         if args.aggregate and args.type == "performance":
             print(get_formatted_report(comparison, format_type=args.format))
 
-    else:
+    else: # Print individual reports
         for report in reports:
             print(get_formatted_report(report, format_type=args.format))
