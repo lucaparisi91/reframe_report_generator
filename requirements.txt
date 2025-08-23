@@ -3,3 +3,5 @@ jupyterlab
 tabulate
 matplotlib
 PyQt5
+influxdb-client
+pytest
